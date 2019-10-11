@@ -5,12 +5,15 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.options import Options
-# import numpy as np
-# import re
+
+# import magic
+
+import urllib.request
+import urllib.parse
+import urllib.error
+
 
 # imports for Git
-
-# imports for mail
 
 # imports for main
 import os
@@ -37,12 +40,13 @@ class ISIS():
 
     def main(self):
         self.login()
-        # self.dataFetcher()
+        self.dataFetcher()
         # self.downloadMNGR()
+        # self.driver.quit()
 
     def waiter(self, div):
         if div == '':
-            div = 'div.tub-logo'  # TODO: check if right
+            div = 'div.tub-logo'  # DONE: check if right (seems to be working)
         self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, div)))
 
     def login(self):
@@ -60,9 +64,30 @@ class ISIS():
 
     def dataFetcher(self):
         # TODO: dataFetcher
-        for courseID, ID in self.ids.items():
-            print(f'c id: {courseID}, id: {ID}')
+
+        for courses, ID in self.ids.items():
+            print(f'c id: {courses}, id: {ID}')
+            # go to resource page
             self.driver.get(self.courseLink + ID)
+
+            # prepare download path
+            if system == 'Windows':
+                path = ISIS_dir + '\\' + courses + '\\'
+            else:
+                path = ISIS_dir + '/' + courses + '/'
+
+            # find elements by class td,cell,c1 must include href find links to file (not actually the file link)
+            elems = self.driver.find_elements_by_css_selector('td.cell.c1 [href]')
+
+            for elem in elems:
+                # ignore if url contains page
+                url = elem.get_attribute('href')
+
+                name = elem.get_attribute('text')  # probably not usefull
+
+                # follow the link to get next link wich is actually the fucking file ????
+
+                print(f'{url}, {name}')
 
 
 if __name__ == '__main__':
@@ -87,9 +112,9 @@ if __name__ == '__main__':
         # create folder structer if non existent
     for courses in ids:
         if system == 'Windows':
-            directory = ISIS_dir + r'\Course-' + courses
+            directory = ISIS_dir + '\\' + courses
         else:
-            directory = ISIS_dir + '/Course-' + courses
+            directory = ISIS_dir + '/' + courses
         if not os.path.exists(directory):
             os.makedirs(directory)
 
@@ -99,11 +124,6 @@ if __name__ == '__main__':
     is_pw = credentials[2].strip('\n')
     git_login = credentials[4].strip('\n')
     git_pw = credentials[5].strip('\n')
-    mail_login = credentials[7].strip('\n')
-    mail_pw = credentials[8].strip('\n')
-    provider = credentials[9].strip('\n')
-    smtp = credentials[10].strip('\n')
-    port = int(credentials[11].strip('\n'))
 
     # Start fetching ISIS data
     ISIS(is_login, is_pw, ISIS_dir, ids)
