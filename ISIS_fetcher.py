@@ -12,6 +12,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
+import wget
 
 # imports for Git
 
@@ -64,6 +65,9 @@ class ISIS():
 
     def dataFetcher(self):
         # TODO: dataFetcher
+        # download options
+        # -wget
+        # urllib
 
         for courses, ID in self.ids.items():
             print(f'c id: {courses}, id: {ID}')
@@ -78,16 +82,31 @@ class ISIS():
 
             # find elements by class td,cell,c1 must include href find links to file (not actually the file link)
             elems = self.driver.find_elements_by_css_selector('td.cell.c1 [href]')
+            urls = []
+            print(f'{elems}')
 
             for elem in elems:
                 # ignore if url contains page
                 url = elem.get_attribute('href')
-
                 name = elem.get_attribute('text')  # probably not usefull
 
-                # follow the link to get next link wich is actually the fucking file ????
+                urls.append(url)
 
                 print(f'{url}, {name}')
+
+            for url in urls:
+                if not 'url' in url or not 'page' in url:  # ignore links to external source such as sites on isis or other websites
+                    if 'resource' in url:
+                        self.driver.get(url)
+                        cur = self.driver.current_url
+                        curName = (cur.split('/'))
+                        filePath = path + curName[-1]
+
+                        wget.download(url, filePath)
+
+                    else:  # TODO: subroutine for folders
+                        # fake news
+                        print('#fakenews')
 
 
 if __name__ == '__main__':
