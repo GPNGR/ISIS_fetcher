@@ -6,13 +6,13 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.options import Options
 
-# import magic
+import wget
+
+import requests
 
 import urllib.request
 import urllib.parse
 import urllib.error
-
-import wget
 
 # imports for Git
 
@@ -83,36 +83,40 @@ class ISIS():
             # find elements by class td,cell,c1 must include href find links to file (not actually the file link)
             elems = self.driver.find_elements_by_css_selector('td.cell.c1 [href]')
             urls = []
-            print(f'{elems}')
 
             for elem in elems:
                 # ignore if url contains page
                 url = elem.get_attribute('href')
                 name = elem.get_attribute('text')  # probably not usefull
-
                 urls.append(url)
-
-                print(f'{url}, {name}')
 
             for url in urls:
                 if not 'url' in url or not 'page' in url:  # ignore links to external source such as sites on isis or other websites
                     if 'resource' in url:
                         self.driver.get(url)
-                        cur = self.driver.current_url
-                        curName = (cur.split('/'))
-                        filePath = path + curName[-1]
+                        current_url = self.driver.current_url
+                        file_name = (current_url.split('/'))
+                        file_path = path + file_name[-1]
 
-                        wget.download(url, filePath)
+                        print(f'should download {current_url}')
+                        print(f'as {file_path}')
+
+                        print(f'Beginning file download {file_name}')
+
+                        r = requests.get(current_url)
+                        with open(file_path, 'wb') as f:
+                            f.write(r.content)
 
                     else:  # TODO: subroutine for folders
                         # fake news
                         print('#fakenews')
 
+                        # cookies in cookie jar and give them to requests
+
 
 if __name__ == '__main__':
     # Course_names and IDs
-    ids = {'ISDA': '15697', 'Diskrete-Strukturen': '15604',
-           'Stochastik': '15633', 'Sysprog': '15693'}
+    ids = {'Sysprog': '15693'}
 
     # get system info and paths to git repository
     system = platform.system()
