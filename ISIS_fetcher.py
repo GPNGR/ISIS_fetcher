@@ -6,9 +6,8 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.options import Options
 
-import wget
-
 import requests
+import time
 
 import urllib.request
 import urllib.parse
@@ -29,21 +28,25 @@ class ISIS():
         self.dldir = dldir
         self.ids = courseIDs
         self.courseLink = 'https://isis.tu-berlin.de/course/resources.php?id='
-        # TODO: make driver --headless
         self.options = Options()
+        # TODO: make driver --headless
+        # self.options.headless = True
         self.options.set_preference("browser.download.folderList", 2)
         self.options.set_preference("browser.download.manager.showWhenStarting", False)
-        self.options.set_preference("browser.download.dir", "/data")
-        self.options.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/octet-stream,application/vnd.ms-excel")
-        self.driver = webdriver.Firefox(firefox_options=self.options)
+        self.options.set_preference("browser.download.dir", self.dldir)
+        self.options.set_preference("browser.helperApps.neverAsk.saveToDisk",
+        "application/msword, application/csv, application/ris, text/csv, image/png, application/pdf, text/html, text/plain, application/zip, application/x-zip, application/x-zip-compressed, application/download, application/octet-stream")
+        self.driver = webdriver.Firefox(options=self.options)
         self.wait = WebDriverWait(self.driver, 10)
+        self.request = requests.Session()
         self.main()
 
     def main(self):
         self.login()
         self.dataFetcher()
         # self.downloadMNGR()
-        # self.driver.quit()
+        print(f'Finished fetching')
+        self.driver.quit()
 
     def waiter(self, div):
         if div == '':
@@ -52,6 +55,8 @@ class ISIS():
 
     def login(self):
         # DONE: login function
+
+        print(f'Login in to Isis')
 
         self.driver.get('https://www.isis.tu-berlin.de/login/index.php')
         self.waiter('div.container')
@@ -62,15 +67,25 @@ class ISIS():
         self.driver.find_element_by_id('username').send_keys(self.is_login)
         self.driver.find_element_by_id('password').send_keys(self.is_pw)
         self.driver.find_element_by_id('login-button').click()
+        
+        # get cookies and forward them to the requests session
+
+        cookiejar = self.driver.get_cookies()
+
+        for cookie in cookiejar:
+            self.request.cookies.set(cookie['name'], cookie['value'])
+
+        print(f'Done')
 
     def dataFetcher(self):
         # TODO: dataFetcher
+        # add time to check if faster then old method
         # download options
         # -wget
         # urllib
 
         for courses, ID in self.ids.items():
-            print(f'c id: {courses}, id: {ID}')
+            print(f'c Course: {courses}, id: {ID}\n')
             # go to resource page
             self.driver.get(self.courseLink + ID)
 
@@ -87,7 +102,6 @@ class ISIS():
             for elem in elems:
                 # ignore if url contains page
                 url = elem.get_attribute('href')
-                name = elem.get_attribute('text')  # probably not usefull
                 urls.append(url)
 
             for url in urls:
@@ -98,20 +112,25 @@ class ISIS():
                         file_name = (current_url.split('/'))
                         file_path = path + file_name[-1]
 
-                        print(f'should download {current_url}')
-                        print(f'as {file_path}')
+                        if not os.path.exists(file_path): # check if file exists, if not then download
+                            print(f'Beginning file download\n {file_name[-1]}\n')
 
-                        print(f'Beginning file download {file_name}')
+                            t_start = time.time()
+                            data = self.request.get(current_url)
+                            with open(file_path, 'wb') as f:
+                                f.write(data.content)
+                            t_total = time.time() - t_start
 
-                        r = requests.get(current_url)
-                        with open(file_path, 'wb') as f:
-                            f.write(r.content)
+                            print(f'finished in {t_total} seconds\n')
+                            # TODO: fix function to continue after downloading zip file
+                        else:
+                            print(f'already exists')
+                        # self.driver.get(self.courseLink + ID)
 
                     else:  # TODO: subroutine for folders
                         # fake news
-                        print('#fakenews')
+                        print('#fakenews\n')
 
-                        # cookies in cookie jar and give them to requests
 
 
 if __name__ == '__main__':
