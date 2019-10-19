@@ -5,13 +5,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.options import Options
-
 import requests
 import time
-
-import urllib.request
-import urllib.parse
-import urllib.error
 
 # imports for Git
 
@@ -44,7 +39,6 @@ class ISIS():
     def main(self):
         self.login()
         self.dataFetcher()
-        # self.downloadMNGR()
         print(f'Finished fetching')
         self.driver.quit()
 
@@ -77,15 +71,38 @@ class ISIS():
 
         print(f'Done')
 
+    def downloader(self, path, url, name, folder):
+        r = self.request.head(url, allow_redirects=True)
+        current_url = r.url
+
+        file_name = (current_url.split('/'))[-1]
+        if folder == 1:
+            file_name = name[1:].replace(' ','_') + '.zip'
+        file_path = path + file_name
+
+        if file_path.endswith('?forcedownload=1'): # remove forcedownload from zip filenames
+            file_path = file_path[:-16]
+            file_name = file_name[:-16]
+
+        if not os.path.exists(file_path): # check if file exists, if not then download
+            print(f'Beginning file download {file_name}')
+
+            t_start = time.time()
+            data = self.request.get(current_url)
+            with open(file_path, 'wb') as f:
+                f.write(data.content)
+            t_total = time.time() - t_start
+
+            print(f'finished in {t_total} seconds\n')
+        else:
+            print(f'{file_name} already exists')
+
+
     def dataFetcher(self):
-        # TODO: dataFetcher
-        # add time to check if faster then old method
-        # download options
-        # -wget
-        # urllib
+        # TODO: dataFetcher split into multiple functions
 
         for courses, ID in self.ids.items():
-            print(f'c Course: {courses}, id: {ID}\n')
+            print(f'c Course: {courses}, id: {ID}')
             # go to resource page
             self.driver.get(self.courseLink + ID)
 
@@ -97,45 +114,31 @@ class ISIS():
 
             # find elements by class td,cell,c1 must include href find links to file (not actually the file link)
             elems = self.driver.find_elements_by_css_selector('td.cell.c1 [href]')
-            urls = []
-
+            url_dict = dict()
             for elem in elems:
-                # ignore if url contains page
                 url = elem.get_attribute('href')
-                urls.append(url)
+                name = elem.get_attribute('text')
+                url_dict[url] = name
 
-            for url in urls:
-                if not 'url' in url or not 'page' in url:  # ignore links to external source such as sites on isis or other websites
-                    if 'resource' in url:
-                        self.driver.get(url)
-                        current_url = self.driver.current_url
-                        file_name = (current_url.split('/'))
-                        file_path = path + file_name[-1]
+            for url, name in url_dict.items():
+                if 'resource' in url:
+                    self.downloader(path,url,name, 0) # download file only add name if folder
 
-                        if not os.path.exists(file_path): # check if file exists, if not then download
-                            print(f'Beginning file download\n {file_name[-1]}\n')
+                if 'folder' in url:  # TODO: fix weird naming issue
+                    print(f'Folder') #
+                    
+                    # print(f'{name}')
 
-                            t_start = time.time()
-                            data = self.request.get(current_url)
-                            with open(file_path, 'wb') as f:
-                                f.write(data.content)
-                            t_total = time.time() - t_start
+                    url_id = url.split('?')[-1]
+                    f_url = 'https://isis.tu-berlin.de/mod/folder/download_folder.php?' + url_id
 
-                            print(f'finished in {t_total} seconds\n')
-                            # TODO: fix function to continue after downloading zip file
-                        else:
-                            print(f'already exists')
-                        # self.driver.get(self.courseLink + ID)
-
-                    else:  # TODO: subroutine for folders
-                        # fake news
-                        print('#fakenews\n')
-
+                    self.downloader(path, f_url, name,1)
 
 
 if __name__ == '__main__':
     # Course_names and IDs
-    ids = {'Sysprog': '15693'}
+    ids = {'RnVs': '17196','SwtPP':'17456'
+            ,'Logik':'17350','IG':'17280'}
 
     # get system info and paths to git repository
     system = platform.system()
@@ -152,6 +155,7 @@ if __name__ == '__main__':
         ISIS_dir = os.getcwd().strip('ISIS_fetcher') + 'Test'
 
         # create folder structer if non existent
+    print(f'system -> {system}')
     for courses in ids:
         if system == 'Windows':
             directory = ISIS_dir + '\\' + courses
