@@ -5,15 +5,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.options import Options
+from urllib.parse import unquote
 import requests
 import time
 
 # imports for Git
+from git import Repo
+import datetime
 
 # imports for main
 import os
 import platform
-
 
 class ISIS():
 
@@ -26,11 +28,11 @@ class ISIS():
         self.options = Options()
         # TODO: make driver --headless
         # self.options.headless = True
-        self.options.set_preference("browser.download.folderList", 2)
-        self.options.set_preference("browser.download.manager.showWhenStarting", False)
-        self.options.set_preference("browser.download.dir", self.dldir)
-        self.options.set_preference("browser.helperApps.neverAsk.saveToDisk",
-        "application/msword, application/csv, application/ris, text/csv, image/png, application/pdf, text/html, text/plain, application/zip, application/x-zip, application/x-zip-compressed, application/download, application/octet-stream")
+        self.options.set_preference('browser.download.folderList', 2)
+        self.options.set_preference('browser.download.manager.showWhenStarting', False)
+        self.options.set_preference('browser.download.dir', self.dldir)
+        self.options.set_preference('browser.helperApps.neverAsk.saveToDisk',
+        'application/msword, application/csv, application/ris, text/csv, image/png, application/pdf, text/html, text/plain, application/zip, application/x-zip, application/x-zip-compressed, application/download, application/octet-stream')
         self.driver = webdriver.Firefox(options=self.options)
         self.wait = WebDriverWait(self.driver, 10)
         self.request = requests.Session()
@@ -61,7 +63,6 @@ class ISIS():
         self.driver.find_element_by_id('username').send_keys(self.is_login)
         self.driver.find_element_by_id('password').send_keys(self.is_pw)
         self.driver.find_element_by_id('login-button').click()
-        
         # get cookies and forward them to the requests session
 
         cookiejar = self.driver.get_cookies()
@@ -78,7 +79,8 @@ class ISIS():
         file_name = (current_url.split('/'))[-1]
         if folder == 1:
             file_name = name[1:].replace(' ','_') + '.zip'
-        file_path = path + file_name
+
+        file_path = path + unquote(file_name)
 
         if file_path.endswith('?forcedownload=1'): # remove forcedownload from zip filenames
             file_path = file_path[:-16]
@@ -99,7 +101,6 @@ class ISIS():
 
 
     def dataFetcher(self):
-        # TODO: dataFetcher split into multiple functions
 
         for courses, ID in self.ids.items():
             print(f'c Course: {courses}, id: {ID}')
@@ -134,6 +135,43 @@ class ISIS():
 
                     self.downloader(path, f_url, name,1)
 
+class Git_handler:
+
+    def __init__(self, rep_dir):
+        self.rep_dir = rep_dir
+
+    def git_pull(self):
+        try:
+            repo = Repo(self.rep_dir)
+            origin = repo.remote('origin')
+            origin.pull()
+        except:
+            time = str(datetime.date.today()) + ' ' + str(datetime.datetime.now().hour) + \
+                ':' + str(datetime.datetime.now().minute)
+            print(f'Failed to pull from Uni git repo on {time}')
+        else:
+            time = str(datetime.date.today()) + ' ' + str(datetime.datetime.now().hour) + \
+                ':' + str(datetime.datetime.now().minute)
+            print(f'Succsesfully pulled from Uni git repo on {time}')
+
+    def git_push(self):
+        time = str(datetime.date.today()) + ' ' + str(datetime.datetime.now().hour) + \
+            ':' + str(datetime.datetime.now().minute)
+        commit_message = f'Updated via Python at {time}'
+        try:
+            repo = Repo(self.rep_dir)
+            repo.git.add('--all')
+            repo.index.commit(commit_message)
+            origin = repo.remote('origin')
+            origin.push()
+        except:
+            time = str(datetime.date.today()) + ' ' + str(datetime.datetime.now().hour) + \
+                ':' + str(datetime.datetime.now().minute)
+            print(f'Failed to push to Uni Git repository on {time}\n')
+        else:
+            time = str(datetime.date.today()) + ' ' + str(datetime.datetime.now().hour) + \
+                ':' + str(datetime.datetime.now().minute)
+            print(f'Updated Uni Git repository on {time}\n')
 
 if __name__ == '__main__':
     # Course_names and IDs
@@ -166,10 +204,15 @@ if __name__ == '__main__':
 
     # get credentials from credentials.txt
     credentials = open(cred, 'r').readlines()
-    is_login = credentials[1].strip('\n')
-    is_pw = credentials[2].strip('\n')
-    git_login = credentials[4].strip('\n')
-    git_pw = credentials[5].strip('\n')
+    is_login = credentials[0].strip('\n')
+    is_pw = credentials[1].strip('\n')
+
+    # pull git repo
+    git = Git_handler(git_dir)
+    git.git_pull()
 
     # Start fetching ISIS data
     ISIS(is_login, is_pw, ISIS_dir, ids)
+
+    # push git repo
+    git.git_push()

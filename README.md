@@ -21,12 +21,8 @@ Uni_folder
 ```
 - create credentials.txt 
 ```
-# Isis login and pw
 m.Mustermann
 is_password
-# Github login and pw
-Mustermain
-git_password
 ```
 - change lines
   - 150 -160 replace test with your semester folder name
