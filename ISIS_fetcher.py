@@ -26,8 +26,8 @@ class ISIS():
         self.ids = courseIDs
         self.courseLink = 'https://isis.tu-berlin.de/course/resources.php?id='
         self.options = Options()
-        # TODO: make driver --headless
-        # self.options.headless = True
+        # DONE: make driver --headless
+        self.options.headless = True
         self.options.set_preference('browser.download.folderList', 2)
         self.options.set_preference('browser.download.manager.showWhenStarting', False)
         self.options.set_preference('browser.download.dir', self.dldir)
@@ -73,20 +73,25 @@ class ISIS():
         print(f'Done')
 
     def downloader(self, path, url, name, folder):
+        # redirect url to download url
         r = self.request.head(url, allow_redirects=True)
         current_url = r.url
 
+        # if folder == 1 create zip file name
         file_name = (current_url.split('/'))[-1]
         if folder == 1:
             file_name = name[1:].replace(' ','_') + '.zip'
 
+        # unqoute url to chance %C3% to umlaut
         file_path = path + unquote(file_name)
 
-        if file_path.endswith('?forcedownload=1'): # remove forcedownload from zip filenames
+        # remove forcedownload from zip filenames
+        if file_path.endswith('?forcedownload=1'):
             file_path = file_path[:-16]
             file_name = file_name[:-16]
 
-        if not os.path.exists(file_path): # check if file exists, if not then download
+        # check if file exists, if not then download
+        if not os.path.exists(file_path):
             print(f'Beginning file download {file_name}')
 
             t_start = time.time()
@@ -103,7 +108,7 @@ class ISIS():
     def dataFetcher(self):
 
         for courses, ID in self.ids.items():
-            print(f'c Course: {courses}, id: {ID}')
+            print(f'Course: {courses}, id: {ID}')
             # go to resource page
             self.driver.get(self.courseLink + ID)
 
@@ -122,14 +127,12 @@ class ISIS():
                 url_dict[url] = name
 
             for url, name in url_dict.items():
+                # download regular files
                 if 'resource' in url:
-                    self.downloader(path,url,name, 0) # download file only add name if folder
-
+                    self.downloader(path,url,name, 0)
+                # download folder as .zip
                 if 'folder' in url:  # TODO: fix weird naming issue
-                    print(f'Folder') #
-                    
-                    # print(f'{name}')
-
+                    print(f'Folder')
                     url_id = url.split('?')[-1]
                     f_url = 'https://isis.tu-berlin.de/mod/folder/download_folder.php?' + url_id
 
@@ -192,7 +195,7 @@ if __name__ == '__main__':
         git_dir = os.getcwd().strip('ISIS_fetcher') + 'Test/.git'
         ISIS_dir = os.getcwd().strip('ISIS_fetcher') + 'Test'
 
-        # create folder structer if non existent
+    # create folder structer if non existent
     print(f'system -> {system}')
     for courses in ids:
         if system == 'Windows':
