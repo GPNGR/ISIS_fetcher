@@ -17,6 +17,7 @@ import datetime
 import os
 import platform
 
+
 class ISIS():
 
     def __init__(self, usr, pw, dldir, courseIDs, **kwargs):
@@ -29,10 +30,11 @@ class ISIS():
         # DONE: make driver --headless
         self.options.headless = True
         self.options.set_preference('browser.download.folderList', 2)
-        self.options.set_preference('browser.download.manager.showWhenStarting', False)
+        self.options.set_preference(
+            'browser.download.manager.showWhenStarting', False)
         self.options.set_preference('browser.download.dir', self.dldir)
         self.options.set_preference('browser.helperApps.neverAsk.saveToDisk',
-        'application/msword, application/csv, application/ris, text/csv, image/png, application/pdf, text/html, text/plain, application/zip, application/x-zip, application/x-zip-compressed, application/download, application/octet-stream')
+                                    'application/msword, application/csv, application/ris, text/csv, image/png, image/jpg, image/jpeg, application/pdf, text/html, text/plain, application/zip, application/x-zip, application/x-zip-compressed, application/download, application/octet-stream')
         self.driver = webdriver.Firefox(options=self.options)
         self.wait = WebDriverWait(self.driver, 10)
         self.request = requests.Session()
@@ -47,7 +49,8 @@ class ISIS():
     def waiter(self, div):
         if div == '':
             div = 'div.tub-logo'  # DONE: check if right (seems to be working)
-        self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, div)))
+        self.wait.until(EC.visibility_of_element_located(
+            (By.CSS_SELECTOR, div)))
 
     def login(self):
         # DONE: login function
@@ -77,12 +80,18 @@ class ISIS():
         r = self.request.head(url, allow_redirects=True)
         current_url = r.url
 
+        # if url == current_url then its not a pdf
+        if current_url == url and folder == 0:
+            self.driver.get(url)
+            elem = self.driver.find_element_by_css_selector('.resourceimage')
+            current_url = elem.get_attribute('src')
+
         # if folder == 1 create zip file name
         file_name = (current_url.split('/'))[-1]
         if folder == 1:
-            file_name = name[1:].replace(' ','_') + '.zip'
+            file_name = name[1:].replace(' ', '_') + '.zip'
 
-        # unqoute url to chance %C3% to umlaut
+        # unqoute url to change %C3% to umlaut
         file_path = path + unquote(file_name)
 
         # remove forcedownload from zip filenames
@@ -104,7 +113,6 @@ class ISIS():
         else:
             print(f'{file_name} already exists')
 
-
     def dataFetcher(self):
 
         for courses, ID in self.ids.items():
@@ -119,7 +127,8 @@ class ISIS():
                 path = ISIS_dir + '/' + courses + '/'
 
             # find elements by class td,cell,c1 must include href find links to file (not actually the file link)
-            elems = self.driver.find_elements_by_css_selector('td.cell.c1 [href]')
+            elems = self.driver.find_elements_by_css_selector(
+                'td.cell.c1 [href]')
             url_dict = dict()
             for elem in elems:
                 url = elem.get_attribute('href')
@@ -128,15 +137,17 @@ class ISIS():
 
             for url, name in url_dict.items():
                 # download regular files
+                # TODO: download pictures problem no redirect to a downloadabel url possible solution find .jpg
                 if 'resource' in url:
-                    self.downloader(path,url,name, 0)
+                    self.downloader(path, url, name, 0)
                 # download folder as .zip
                 if 'folder' in url:  # TODO: fix weird naming issue
                     print(f'Folder')
                     url_id = url.split('?')[-1]
                     f_url = 'https://isis.tu-berlin.de/mod/folder/download_folder.php?' + url_id
 
-                    self.downloader(path, f_url, name,1)
+                    self.downloader(path, f_url, name, 1)
+
 
 class Git_handler:
 
@@ -176,10 +187,11 @@ class Git_handler:
                 ':' + str(datetime.datetime.now().minute)
             print(f'Updated Uni Git repository on {time}\n')
 
+
 if __name__ == '__main__':
     # Course_names and IDs
-    ids = {'RnVs': '17196','SwtPP':'17456'
-            ,'Logik':'17350','IG':'17280'}
+    ids = {'AlgTheo': '19353', 'VS': '18890',
+           'Stochastik': '18995', 'Data_Science': '18803'}
 
     # get system info and paths to git repository
     system = platform.system()
@@ -187,13 +199,13 @@ if __name__ == '__main__':
     if system == 'Windows':
         cwd = os.getcwd()
         cred = cwd + r'\credentials.txt'
-        git_dir = os.getcwd().strip('ISIS_fetcher') + r'Test\.git'
-        ISIS_dir = os.getcwd().strip('ISIS_fetcher') + r'Test'
+        git_dir = os.getcwd().strip('ISIS_fetcher') + r'06_20_SS\.git'
+        ISIS_dir = os.getcwd().strip('ISIS_fetcher') + r'06_20_SS'
     else:
         cwd = os.getcwd()
         cred = cwd + '/credentials.txt'
-        git_dir = os.getcwd().strip('ISIS_fetcher') + 'Test/.git'
-        ISIS_dir = os.getcwd().strip('ISIS_fetcher') + 'Test'
+        git_dir = os.getcwd().strip('ISIS_fetcher') + '06_20_SS/.git'
+        ISIS_dir = os.getcwd().strip('ISIS_fetcher') + '06_20_SS'
 
     # create folder structer if non existent
     print(f'system -> {system}')
