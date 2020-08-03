@@ -27,7 +27,6 @@ class ISIS():
         self.ids = courseIDs
         self.courseLink = 'https://isis.tu-berlin.de/course/resources.php?id='
         self.options = Options()
-        # DONE: make driver --headless
         self.options.headless = True
         self.options.set_preference('browser.download.folderList', 2)
         self.options.set_preference(
@@ -48,13 +47,11 @@ class ISIS():
 
     def waiter(self, div):
         if div == '':
-            div = 'div.tub-logo'  # DONE: check if right (seems to be working)
+            div = 'div.tub-logo'
         self.wait.until(EC.visibility_of_element_located(
             (By.CSS_SELECTOR, div)))
 
     def login(self):
-        # DONE: login function
-
         print(f'Login in to Isis')
 
         self.driver.get('https://www.isis.tu-berlin.de/login/index.php')
@@ -137,11 +134,10 @@ class ISIS():
 
             for url, name in url_dict.items():
                 # download regular files
-                # TODO: download pictures problem no redirect to a downloadabel url possible solution find .jpg
                 if 'resource' in url:
                     self.downloader(path, url, name, 0)
                 # download folder as .zip
-                if 'folder' in url:  # TODO: fix weird naming issue
+                if 'folder' in url:
                     print(f'Folder')
                     url_id = url.split('?')[-1]
                     f_url = 'https://isis.tu-berlin.de/mod/folder/download_folder.php?' + url_id
