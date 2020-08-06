@@ -16,6 +16,7 @@ import datetime
 # imports for main
 import os
 import platform
+import json
 
 
 class ISIS():
@@ -27,7 +28,6 @@ class ISIS():
         self.ids = courseIDs
         self.courseLink = 'https://isis.tu-berlin.de/course/resources.php?id='
         self.options = Options()
-        # DONE: make driver --headless
         self.options.headless = True
         self.options.set_preference('browser.download.folderList', 2)
         self.options.set_preference(
@@ -48,13 +48,11 @@ class ISIS():
 
     def waiter(self, div):
         if div == '':
-            div = 'div.tub-logo'  # DONE: check if right (seems to be working)
+            div = 'div.tub-logo'
         self.wait.until(EC.visibility_of_element_located(
             (By.CSS_SELECTOR, div)))
 
     def login(self):
-        # DONE: login function
-
         print(f'Login in to Isis')
 
         self.driver.get('https://www.isis.tu-berlin.de/login/index.php')
@@ -114,19 +112,19 @@ class ISIS():
             print(f'{file_name} already exists')
 
     def dataFetcher(self):
-
-        for courses, ID in self.ids.items():
-            print(f'Course: {courses}, id: {ID}')
+        for c, id_ in self.ids.items():
+            print(f'Course: {c}, id: {id_}')
             # go to resource page
-            self.driver.get(self.courseLink + ID)
+            self.driver.get(self.courseLink + id_)
 
             # prepare download path
             if system == 'Windows':
-                path = ISIS_dir + '\\' + courses + '\\'
+                path = ISIS_dir + '\\' + c + '\\'
             else:
-                path = ISIS_dir + '/' + courses + '/'
+                path = ISIS_dir + '/' + c + '/'
 
-            # find elements by class td,cell,c1 must include href find links to file (not actually the file link)
+            # find elements by class td,cell,c1 must include href find links to
+            # file (not actually the file link)
             elems = self.driver.find_elements_by_css_selector(
                 'td.cell.c1 [href]')
             url_dict = dict()
@@ -137,15 +135,13 @@ class ISIS():
 
             for url, name in url_dict.items():
                 # download regular files
-                # TODO: download pictures problem no redirect to a downloadabel url possible solution find .jpg
                 if 'resource' in url:
                     self.downloader(path, url, name, 0)
                 # download folder as .zip
-                if 'folder' in url:  # TODO: fix weird naming issue
+                if 'folder' in url:
                     print(f'Folder')
                     url_id = url.split('?')[-1]
                     f_url = 'https://isis.tu-berlin.de/mod/folder/download_folder.php?' + url_id
-
                     self.downloader(path, f_url, name, 1)
 
 
@@ -159,7 +155,7 @@ class Git_handler:
             repo = Repo(self.rep_dir)
             origin = repo.remote('origin')
             origin.pull()
-        except:
+        except BaseException:
             time = str(datetime.date.today()) + ' ' + str(datetime.datetime.now().hour) + \
                 ':' + str(datetime.datetime.now().minute)
             print(f'Failed to pull from Uni git repo on {time}')
@@ -178,7 +174,7 @@ class Git_handler:
             repo.index.commit(commit_message)
             origin = repo.remote('origin')
             origin.push()
-        except:
+        except BaseException:
             time = str(datetime.date.today()) + ' ' + str(datetime.datetime.now().hour) + \
                 ':' + str(datetime.datetime.now().minute)
             print(f'Failed to push to Uni Git repository on {time}\n')
@@ -189,45 +185,36 @@ class Git_handler:
 
 
 if __name__ == '__main__':
-    # Course_names and IDs
-    ids = {'AlgTheo': '19353', 'VS': '18890',
-           'Stochastik': '18995', 'Data_Science': '18803'}
-
     # get system info and paths to git repository
     system = platform.system()
 
-    if system == 'Windows':
-        cwd = os.getcwd()
-        cred = cwd + r'\credentials.txt'
-        git_dir = os.getcwd().strip('ISIS_fetcher') + r'06_20_SS\.git'
-        ISIS_dir = os.getcwd().strip('ISIS_fetcher') + r'06_20_SS'
-    else:
-        cwd = os.getcwd()
-        cred = cwd + '/credentials.txt'
-        git_dir = os.getcwd().strip('ISIS_fetcher') + '06_20_SS/.git'
-        ISIS_dir = os.getcwd().strip('ISIS_fetcher') + '06_20_SS'
+    cwd = os.getcwd()
+    # grab credentials and courses
+    with open(os.path.join(cwd, 'credentials.json')) as input:
+        cred = json.load(input)
+
+    ISIS_dir = os.path.join(os.pardir, '06_20_SS')
+    git_dir = os.path.join(ISIS_dir, '.git')
+
+    # Course_names and IDs
+    courses = cred['Courses']
 
     # create folder structer if non existent
     print(f'system -> {system}')
-    for courses in ids:
-        if system == 'Windows':
-            directory = ISIS_dir + '\\' + courses
-        else:
-            directory = ISIS_dir + '/' + courses
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+    for c in courses:
+        dir_ = os.path.join(ISIS_dir, c)
+        if not os.path.exists(dir_):
+            os.makedirs(dir_)
 
-    # get credentials from credentials.txt
-    credentials = open(cred, 'r').readlines()
-    is_login = credentials[0].strip('\n')
-    is_pw = credentials[1].strip('\n')
+    is_login = cred['Isis login']
+    is_pw = cred['Isis password']
 
     # pull git repo
     git = Git_handler(git_dir)
     git.git_pull()
 
     # Start fetching ISIS data
-    ISIS(is_login, is_pw, ISIS_dir, ids)
+    ISIS(is_login, is_pw, ISIS_dir, courses)
 
     # push git repo
     git.git_push()
