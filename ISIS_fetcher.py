@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.options import Options
+from selenium.common.exceptions import NoSuchElementException
 from urllib.parse import unquote
 import requests
 import time
@@ -81,8 +82,21 @@ class ISIS():
         # if url == current_url then its not a pdf
         if current_url == url and folder == 0:
             self.driver.get(url)
-            elem = self.driver.find_element_by_css_selector('.resourceimage')
-            current_url = elem.get_attribute('src')
+            try:
+                elem = self.driver.find_element_by_css_selector(
+                    '.resourceimage')
+                current_url = elem.get_attribute('src')
+            except NoSuchElementException:
+                print(f'not an image')
+            try:
+                elem = self.driver.find_element_by_css_selector(
+                    '.resourceworkaround > a:nth-child(1)')
+                url = elem.get_attribute('href')
+                r = self.request.head(url, allow_redirects=True)
+                current_url = r.url
+            except NoSuchElementException:
+                print(f'no workaround pdf either -> skipping file')
+                pass
 
         # if folder == 1 create zip file name
         file_name = (current_url.split('/'))[-1]
@@ -119,9 +133,9 @@ class ISIS():
 
             # prepare download path
             if system == 'Windows':
-                path = ISIS_dir + '\\' + c + '\\'
+            	path = ISIS_dir + '\\' + c + '\\'
             else:
-                path = ISIS_dir + '/' + c + '/'
+            	path = ISIS_dir + '/' + c + '/'
 
             # find elements by class td,cell,c1 must include href find links to
             # file (not actually the file link)
@@ -192,8 +206,8 @@ if __name__ == '__main__':
     # grab credentials and courses
     with open(os.path.join(cwd, 'credentials.json')) as input:
         cred = json.load(input)
-
-    ISIS_dir = os.path.join(os.pardir, '06_20_SS')
+    i_dir = cred['Git directory']
+    ISIS_dir = os.path.join(os.pardir, i_dir)
     git_dir = os.path.join(ISIS_dir, '.git')
 
     # Course_names and IDs
